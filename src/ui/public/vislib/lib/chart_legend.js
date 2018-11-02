@@ -73,7 +73,7 @@ export function VislibLibChartLegendProvider(Private) {
       this.expanded = this.visConfig.data.uiState.get('vis.legendOpen');
       this.legendId = htmlIdGenerator()('legend');
       this.tooltips = [];
-
+      this.legendPosition = this.visConfig.get('legendPosition', 'right');
       this.labels = this.buildLabels(this.visConfig);
 
     }
@@ -95,7 +95,7 @@ export function VislibLibChartLegendProvider(Private) {
      */
     draw() {
       const self = this;
-      const legendPositionOpts = legendPositionMap[self.visConfig.get('legendPosition')];
+      const legendPositionOpts = legendPositionMap[self.legendPosition];
       //const formatter = self.data.get('tooltipFormatter');
       //const showTooltip = self.visConfig.get('tooltip.show');
 
@@ -146,7 +146,7 @@ export function VislibLibChartLegendProvider(Private) {
       const li = selection.append('li')
         .attr('class', 'legend-value color')
         .attr('data-label', labelConfig.label);
-      if(['top', 'bottom'].indexOf(self.visConfig.get('legendPosition')) >= 0) {
+      if(['top', 'bottom'].indexOf(self.legendPosition) >= 0) {
         li.style('display', 'inline-block');
       }
       const valueContainer = li.append('div')
@@ -245,6 +245,7 @@ export function VislibLibChartLegendProvider(Private) {
      * @param label data label to update color for
      * @param color new color string
      */
+    // TODO: Gauge color not working
     setColor(label, color) {
       const uiState = this.visConfig.data.uiState;
       const colors = uiState.get('vis.colors') || {};
@@ -292,6 +293,7 @@ export function VislibLibChartLegendProvider(Private) {
      *
      * @param label
      */
+    // TODO: Heatmap does not work either direction, labels.... type is not heatmap?
     handleHighlight(label) {
       if(label && this.handler && typeof this.handler.highlight === 'function') {
         const targetEl = this.getLabelElement(label);
