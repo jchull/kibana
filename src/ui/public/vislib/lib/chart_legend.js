@@ -17,14 +17,15 @@
  * under the License.
  */
 
-import _                                 from 'lodash';
 import { VislibLibErrorHandlerProvider } from './_error_handler';
 import d3                                from 'd3';
-import { htmlIdGenerator }     from '@elastic/eui';
+import { htmlIdGenerator }               from '@elastic/eui';
+import { VislibLibDataProvider }         from '../lib/data';
 
 
 export function VislibLibChartLegendProvider(Private) {
   const ErrorHandler = Private(VislibLibErrorHandlerProvider);
+  const Data = Private(VislibLibDataProvider);
 
   const COLOR_CHOICES = [
     '#3F6833', '#967302', '#2F575E', '#99440A', '#58140C', '#052B51', '#511749', '#3F2B5B', //6
@@ -72,6 +73,8 @@ export function VislibLibChartLegendProvider(Private) {
       this.expanded = this.visConfig.data.uiState.get('vis.legendOpen');
       this.legendId = htmlIdGenerator()('legend');
       this.tooltips = [];
+
+      this.labels = this.buildLabels(this.visConfig);
 
     }
 
@@ -123,8 +126,7 @@ export function VislibLibChartLegendProvider(Private) {
             const ul = vislibChart.select('.vislib-legend')
               .append('ul')
               .attr('class', 'legend-ul');
-            self.getSeriesLabels(self.data)
-              .forEach(series => self.renderSeries(ul, series));
+            self.labels.forEach(labelConfig => self.renderLabels(ul, labelConfig));
           }
 
         });
@@ -135,15 +137,15 @@ export function VislibLibChartLegendProvider(Private) {
     /**
      * Renders all the legend list items
      * @param selection {Object} D3 select UL to add items to
-     * @param series
+     * @param labelConfig{Object}
      */
-    renderSeries(selection, series) {
+    renderLabels(selection, labelConfig) {
       const self = this;
 
-      const color = self.data.getColorFunc()(series.label);
+      const color = self.data.getColorFunc()(labelConfig.label);
       const li = selection.append('li')
         .attr('class', 'legend-value color')
-        .attr('data-label', series.label);
+        .attr('data-label', labelConfig.label);
       if(['top', 'bottom'].indexOf(self.visConfig.get('legendPosition')) >= 0) {
         li.style('display', 'inline-block');
       }
@@ -152,9 +154,9 @@ export function VislibLibChartLegendProvider(Private) {
 
       const title = valueContainer.append('div')
         .attr('class', 'legend-value-title legend-value-truncate') // TODO: handle full
-        .attr('data-label', series.label)
-        .on('mouseenter', () => self.handleHighlight(series.label))
-        .on('mouseleave', () => self.handleUnHighlight(series.label));
+        .attr('data-label', labelConfig.label)
+        .on('mouseenter', () => self.handleHighlight(labelConfig.label))
+        .on('mouseleave', () => self.handleUnHighlight(labelConfig.label));
 
       // TODO: vislib tooltip wants to be in a viz container, does not seem to work without some changes
       title.append('i')
@@ -162,9 +164,9 @@ export function VislibLibChartLegendProvider(Private) {
         .style('color', color);
       title.append('span')
         .style('margin-left', '4px')
-        .text(series.label);
+        .text(labelConfig.label);
 
-      self.renderDetail(valueContainer, series.label);
+      self.renderDetail(valueContainer, labelConfig.label);
 
     }
 
@@ -252,7 +254,6 @@ export function VislibLibChartLegendProvider(Private) {
         colors[label] = color;
       }
       uiState.set('vis.colors', colors);
-      uiState.emit('colorChanged');
     }
 
 
@@ -292,7 +293,7 @@ export function VislibLibChartLegendProvider(Private) {
      * @param label
      */
     handleHighlight(label) {
-      if(this.handler && typeof this.handler.highlight === 'function') {
+      if(label && this.handler && typeof this.handler.highlight === 'function') {
         const targetEl = this.getLabelElement(label);
         this.handler.highlight.call(targetEl, this.handler.el);
       }
@@ -304,7 +305,7 @@ export function VislibLibChartLegendProvider(Private) {
      * @param label
      */
     handleUnHighlight(label) {
-      if(this.handler && typeof this.handler.highlight === 'function') {
+      if(label && this.handler && typeof this.handler.highlight === 'function') {
         const targetEl = this.getLabelElement(label);
         this.handler.unHighlight.call(targetEl, this.handler.el);
       }
@@ -313,19 +314,24 @@ export function VislibLibChartLegendProvider(Private) {
 
     // TODO: filter, onLegendEntryKeydown
 
-    // TODO: make sure to test heatmap and gauge
+    // TODO: make sure to test heatmap and gauge, it seems they do not extend chart?
 
     /**
      *
-     *
-     * @param data
-     * @returns {Array} label text
+     * @param config
      */
-    getSeriesLabels(data) {
-      if(data && data.data && data.data.series) {
-        return _.compact(_.uniq(data.data.series, 'label'));
+    buildLabels(config) {
+      const chartType = config.get('type');
+      if(!config.data || !config.data.data) {
+        return [{ label: 'legend loading...' }];
       }
-      return [{ label: 'legend loading...' }];
+      if(chartType === 'pie') {
+        return Data.prototype.pieNames(config.data.data.columns || config.data.data.rows || [config.data.data]);
+      } else {
+        return config.data.getLabels()
+          .map((label) => {return { label };});
+      }
+
     }
 
 
