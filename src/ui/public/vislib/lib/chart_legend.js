@@ -19,13 +19,11 @@
 
 import _                                 from 'lodash';
 import { VislibLibErrorHandlerProvider } from './_error_handler';
-import { TooltipProvider }               from '../../vis/components/tooltip/index';
 import d3                                from 'd3';
 
 
 export function VislibLibChartLegendProvider(Private) {
   const ErrorHandler = Private(VislibLibErrorHandlerProvider);
-  const Tooltip = Private(TooltipProvider);
 
   const LEGEND_COLLAPSE_ICON = 'fa-chevron-circle';
   const legendPositionMap = {
@@ -58,9 +56,8 @@ export function VislibLibChartLegendProvider(Private) {
       this.visConfig = visConfig;
       this.data = visConfig.data;
       this.el = el;
-      this.tooltip = new Tooltip('legend-value-container', this.el, function (d) {
-        return '<p>' + _.escape(d.label) + '</p>';
-      });
+      this.expanded = this.visConfig.data.uiState.get('vis.legendOpen');
+
     }
 
 
@@ -72,21 +69,23 @@ export function VislibLibChartLegendProvider(Private) {
 
     draw() {
       const self = this;
-      const legendPosition = legendPositionMap[self.visConfig.get('legendPosition')];
-      const legendExpanded = self.visConfig.data.uiState.get('vis.legendOpen');
+      const legendPositionOpts = legendPositionMap[self.visConfig.get('legendPosition')];
+      //const formatter = self.data.get('tooltipFormatter');
+      //const showTooltip = self.visConfig.get('tooltip.show');
 
       return function (selection) {
         selection.each(function () {
           const vislibChart = d3.select(this);
-          vislibChart.style('flex-direction', legendPosition.flexDirection)
+          vislibChart.style('flex-direction', legendPositionOpts.flexDirection)
             .append('div')
             .attr('class', 'vislib-legend legend-col-wrapper')
-            .append('button') // TODO: add button and toggle handler function
+            .append('button')
             .attr('class', 'kuiCollapseButton legend-collapse-button')
+            .on('click', ()=>self.toggle(self))
             .append('i')
-            .attr('class', 'fa ' + (legendExpanded ? legendPosition.expandedIconClass : legendPosition.iconClass));
+            .attr('class', 'fa ' + (self.expanded ? legendPositionOpts.expandedIconClass : legendPositionOpts.iconClass));
 
-          if(legendExpanded) {
+          if(self.expanded) {
             const ul = vislibChart.select('.vislib-legend')
               .append('ul')
               .attr('class', 'legend-ul');
@@ -100,10 +99,10 @@ export function VislibLibChartLegendProvider(Private) {
                   .attr('class', 'legend-value-container')
                   .append('div')
                   .attr('class', 'legend-value-title legend-value-truncate');// TODO: handle full
+                // TODO: vislib tooltip wants to be in a viz container, does not seem to work without some changes
                 title.append('i')
                   .attr('class', 'fa fa-circle')
                   .style('color', self.data.getColorFunc()(series.label));
-                //TODO: tooltip
                 title.append('span') // TODO: needs leading whitespace
                   .text(series.label);
               });
@@ -114,15 +113,10 @@ export function VislibLibChartLegendProvider(Private) {
     }
 
 
-    addMouseEvents(target) {
-      if(this.tooltip) {
-        return target.call(this.tooltip.render());
-      }
-    }
 
 
-    toggle() {
-      // TODO:
+    toggle(target) {
+      return target.data.uiState.set('vis.legendOpen', !target.expanded);
     }
 
 
@@ -143,7 +137,7 @@ export function VislibLibChartLegendProvider(Private) {
       if(data && data.data && data.data.series) {
         return _.compact(_.uniq(data.data.series, 'label')); // TODO: chaining discussion
       }
-      return [{ label: 'new legend loading...' }];
+      return [{ label: 'legend loading...' }];
     }
 
 
