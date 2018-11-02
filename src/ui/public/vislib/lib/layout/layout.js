@@ -23,14 +23,12 @@ import $ from 'jquery';
 import { VislibLibLayoutLayoutTypesProvider } from './layout_types';
 import { VislibLibAxisProvider } from '../axis';
 import { VislibLibChartTitleProvider } from '../chart_title';
-import { VislibLibChartLegendProvider } from '../chart_legend';
 
 export function VislibLibLayoutLayoutProvider(Private) {
 
   const layoutType = Private(VislibLibLayoutLayoutTypesProvider);
   const Axis = Private(VislibLibAxisProvider);
   const ChartTitle = Private(VislibLibChartTitleProvider);
-  const Legend = Private(VislibLibChartLegendProvider);
 
   /**
    * Builds the visualization DOM layout
@@ -53,11 +51,6 @@ export function VislibLibLayoutLayoutProvider(Private) {
       this.el = config.get('el');
       this.data = config.data.data;
       this.opts = config;
-      // TODO: give legend a real config object
-      if(config.get('addLegend')) {
-        this.legend = new Legend(this.el, config);
-      }
-      // TODO: something about layout direction classname stuff to make it show up in the right place
       this.layoutType = layoutType[config.get('type')](this.el, this.data);
     }
 
@@ -70,7 +63,6 @@ export function VislibLibLayoutLayoutProvider(Private) {
      */
     render() {
       this.removeAll(this.el);
-      this.legend.render();
       this.createLayout(this.layoutType);
       // update y-axis-spacer height based on precalculated horizontal axis heights
       if (this.opts.get('type') === 'point_series') {

@@ -23,28 +23,18 @@ import 'plugins/kbn_vislib_vis_types/controls/line_interpolation_option';
 import 'plugins/kbn_vislib_vis_types/controls/heatmap_options';
 import 'plugins/kbn_vislib_vis_types/controls/gauge_options';
 import 'plugins/kbn_vislib_vis_types/controls/point_series';
-import './vislib_vis_legend';
 import { BaseVisType } from './base_vis_type';
 import { AggResponsePointSeriesProvider } from '../../agg_response/point_series/point_series';
 import VislibProvider from '../../vislib';
-import $ from 'jquery';
 
-export function VislibVisTypeProvider(Private, $rootScope, $timeout, $compile) {
+export function VislibVisTypeProvider(Private) {
   const pointSeries = Private(AggResponsePointSeriesProvider);
   const vislib = Private(VislibProvider);
-
-  const legendClassName = {
-    top: 'vislib-container--legend-top',
-    bottom: 'vislib-container--legend-bottom',
-    left: 'vislib-container--legend-left',
-    right: 'vislib-container--legend-right',
-  };
 
   class VislibVisController {
     constructor(el, vis) {
       this.el = el;
       this.vis = vis;
-      this.$scope = null;
 
       this.container = document.createElement('div');
       this.container.className = 'vislib-container';
@@ -66,31 +56,12 @@ export function VislibVisTypeProvider(Private, $rootScope, $timeout, $compile) {
           return resolve();
         }
 
-        if (this.vis.params.addLegend) {
-          $(this.container).attr('class', (i, cls) => {
-            return cls.replace(/vislib-container--legend-\S+/g, '');
-          }).addClass(legendClassName[this.vis.params.legendPosition]);
-
-          this.$scope = $rootScope.$new();
-          this.$scope.refreshLegend = 0;
-          this.$scope.vis = this.vis;
-          this.$scope.visData = esResponse;
-          this.$scope.uiState = this.$scope.vis.getUiState();
-          const legendHtml = $compile('<vislib-legend></vislib-legend>')(this.$scope);
-          this.container.appendChild(legendHtml[0]);
-          this.$scope.$digest();
-        }
-
         this.vis.vislibVis = new vislib.Vis(this.chartEl, this.vis.params);
         this.vis.vislibVis.on('brush', this.vis.API.events.brush);
         this.vis.vislibVis.on('click', this.vis.API.events.filter);
         this.vis.vislibVis.on('renderComplete', resolve);
         this.vis.vislibVis.render(esResponse, this.vis.getUiState());
 
-        if (this.vis.params.addLegend) {
-          this.$scope.refreshLegend++;
-          this.$scope.$digest();
-        }
       });
     }
 
@@ -100,11 +71,6 @@ export function VislibVisTypeProvider(Private, $rootScope, $timeout, $compile) {
         this.vis.vislibVis.off('click', this.vis.API.events.filter);
         this.vis.vislibVis.destroy();
         delete this.vis.vislibVis;
-      }
-      $(this.container).find('vislib-legend').remove();
-      if (this.$scope) {
-        this.$scope.$destroy();
-        this.$scope = null;
       }
     }
   }
