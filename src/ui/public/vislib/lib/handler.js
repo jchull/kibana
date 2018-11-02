@@ -20,15 +20,16 @@
 import d3 from 'd3';
 import _ from 'lodash';
 import MarkdownIt from 'markdown-it';
-import { NoResults } from '../../errors';
-import { Binder } from '../../binder';
-import { VislibLibLayoutLayoutProvider } from './layout/layout';
-import { VislibLibChartTitleProvider } from './chart_title';
-import { VislibLibAlertsProvider } from './alerts';
-import { VislibLibAxisProvider } from './axis/axis';
-import { VislibGridProvider } from './chart_grid';
+import { NoResults }                            from '../../errors';
+import { Binder }                               from '../../binder';
+import { VislibLibLayoutLayoutProvider }        from './layout/layout';
+import { VislibLibChartTitleProvider }          from './chart_title';
+import { VislibLibAlertsProvider }              from './alerts';
+import { VislibLibAxisProvider }                from './axis/axis';
+import { VislibGridProvider }                   from './chart_grid';
 import { VislibVisualizationsVisTypesProvider } from '../visualizations/vis_types';
-import { dispatchRenderComplete } from '../../render_complete';
+import { dispatchRenderComplete }               from '../../render_complete';
+import { VislibLibChartLegendProvider }         from './chart_legend';
 
 const markdownIt = new MarkdownIt({
   html: false,
@@ -42,6 +43,7 @@ export function VisHandlerProvider(Private) {
   const Alerts = Private(VislibLibAlertsProvider);
   const Axis = Private(VislibLibAxisProvider);
   const Grid = Private(VislibGridProvider);
+  const Legend = Private(VislibLibChartLegendProvider);
 
   /**
    * Handles building all the components of the visualization
@@ -67,6 +69,10 @@ export function VisHandlerProvider(Private) {
       this.chartTitle = new ChartTitle(visConfig);
       this.alerts = new Alerts(this, visConfig.get('alerts'));
       this.grid = new Grid(this, visConfig.get('grid'));
+      // TODO: give legend a real config sub-object
+      if(this.visConfig.get('addLegend')) {
+        this.legend = new Legend(this, visConfig);
+      }
 
       if (visConfig.get('type') === 'point_series') {
         this.data.stackData(this);
@@ -80,6 +86,7 @@ export function VisHandlerProvider(Private) {
       this.binder = new Binder();
       this.renderArray = _.filter([
         this.layout,
+        this.legend,
         this.chartTitle,
         this.alerts
       ], Boolean);
