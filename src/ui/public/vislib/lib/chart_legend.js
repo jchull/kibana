@@ -70,19 +70,26 @@ export function VislibLibChartLegendProvider(Private) {
       this.data = this.visConfig.data;
       this.el = this.visConfig.get('el');
       this.expanded = this.visConfig.data.uiState.get('vis.legendOpen');
-      //this.clickHandler = new FilterBarClickHandler(this.data.uiState);
       this.legendId = htmlIdGenerator()('legend');
       this.tooltips = [];
 
     }
 
 
+    /**
+     *
+     * @returns {*}
+     */
     render() {
       return d3.select(this.el)
         .call(this.draw());
     }
 
 
+    /**
+     *
+     * @returns {Function}
+     */
     draw() {
       const self = this;
       const legendPositionOpts = legendPositionMap[self.visConfig.get('legendPosition')];
@@ -97,6 +104,12 @@ export function VislibLibChartLegendProvider(Private) {
             .append('div')
             .attr('id', self.legendId)
             .attr('class', 'vislib-legend legend-col-wrapper')
+            .attr('focusable', 'true')
+            // .on('keypress', () => {
+            //   if(d3.event.keyCode === keyCodes.ESCAPE && self.expanded){
+            //     self.toggle();
+            //   }
+            // })
             .append('button')
             .attr('class', 'kuiCollapseButton legend-collapse-button')
             .attr('aria-label', 'Toggle Legend')
@@ -110,83 +123,8 @@ export function VislibLibChartLegendProvider(Private) {
             const ul = vislibChart.select('.vislib-legend')
               .append('ul')
               .attr('class', 'legend-ul');
-            // TODO: break out each legend item to own component
-
             self.getSeriesLabels(self.data)
-              .forEach(series => {
-                const color = self.data.getColorFunc()(series.label);
-                const li = ul.append('li')
-                  .attr('class', 'legend-value color')
-                  .attr('data-label', series.label);
-                if(['top', 'bottom'].indexOf(self.visConfig.get('legendPosition')) >= 0) {
-                  li.style('display', 'inline-block');
-                }
-                const valueContainer = li.append('div')
-                  .attr('class', 'legend-value-container');
-
-                const title = valueContainer.append('div')
-                  .attr('class', 'legend-value-title legend-value-truncate') // TODO: handle full
-                  .attr('data-label', series.label);
-                title.on('mouseenter', () => self.highlight(this))
-                  .on('mouseleave', () => self.unHighlight(this));
-
-                // TODO: vislib tooltip wants to be in a viz container, does not seem to work without some changes
-                title.append('i')
-                  .attr('class', 'fa fa-circle')
-                  .style('color', self.data.getColorFunc()(series.label));
-                title.append('span')
-                  .style('margin-left', '4px')
-                  .text(series.label);
-
-                const valueDetails = valueContainer.append('div')
-                  .attr('class', 'legend-value-details')
-                  .style('display', 'none')
-                  .style('padding', '4px')
-                  .style('position', 'absolute')
-                  .style('background', '#FFF');
-                title.on('click', () => {
-                  if(valueDetails.style('display') === 'none') {
-                    valueDetails.style('display', 'block');
-                  } else {
-                    valueDetails.style('display', 'none');
-                  }
-                });
-                const filterButtonGroup = valueDetails.append('div')
-                  .attr('class', 'kuiButtonGroup kuiButtonGroup--united kuiButtonGroup--fullWidth');
-                filterButtonGroup.append('button')
-                  .attr('class', 'kuiButton kuiButton--basic kuiButton--small')
-                  .attr('arial-label', 'Filter for value ' + series.label)
-                  //  .on('click', () => {
-                  // TODO: Filter
-                  //  })
-                  .append('span')
-                  .attr('class', 'kuiIcon fa-search-plus');
-                filterButtonGroup.append('button')
-                  .attr('class', 'kuiButton kuiButton--basic kuiButton--small')
-                  .attr('arial-label', 'Filter out value ' + series.label)
-                  //.on('click', () => {
-                  // TODO: Filter
-                  //})
-                  .append('span')
-                  .attr('class', 'kuiIcon fa-search-minus');
-
-                const colorPicker = valueDetails.append('div')
-                  .attr('class', 'legend-value-color-picker')
-                  .attr('role', 'listbox');
-                colorPicker.append('span')
-                  .attr('id', self.legendId + 'ColorPickerDesc')
-                  .attr('class', 'kuiScreenReaderOnly')
-                  .text('Set color for value ' + series.label);
-
-                COLOR_CHOICES.forEach(colorChoice => {
-                  colorPicker.append('i')
-                    .attr('class', 'fa dot fa-circle' + (color === colorChoice ? '-o' : ''))
-                    .style('color', colorChoice)
-                    .on('click', () => self.setColor(series.label, colorChoice));
-
-                });
-                // self.addEvents(title);
-              });
+              .forEach(series => self.renderSeries(ul, series));
           }
 
         });
@@ -194,6 +132,103 @@ export function VislibLibChartLegendProvider(Private) {
     }
 
 
+    /**
+     * Renders all the legend list items
+     * @param selection {Object} D3 select UL to add items to
+     * @param series
+     */
+    renderSeries(selection, series) {
+      const self = this;
+
+      const color = self.data.getColorFunc()(series.label);
+      const li = selection.append('li')
+        .attr('class', 'legend-value color')
+        .attr('data-label', series.label);
+      if(['top', 'bottom'].indexOf(self.visConfig.get('legendPosition')) >= 0) {
+        li.style('display', 'inline-block');
+      }
+      const valueContainer = li.append('div')
+        .attr('class', 'legend-value-container');
+
+      const title = valueContainer.append('div')
+        .attr('class', 'legend-value-title legend-value-truncate') // TODO: handle full
+        .attr('data-label', series.label)
+        .on('mouseenter', () => self.handleHighlight(series.label))
+        .on('mouseleave', () => self.handleUnHighlight(series.label));
+
+      // TODO: vislib tooltip wants to be in a viz container, does not seem to work without some changes
+      title.append('i')
+        .attr('class', 'fa fa-circle')
+        .style('color', color);
+      title.append('span')
+        .style('margin-left', '4px')
+        .text(series.label);
+
+      self.renderDetail(valueContainer, series.label);
+
+    }
+
+
+    /**
+     *
+     * @param selection {Object} D3 select container to add detail to
+     * @param label data label
+     */
+    renderDetail(selection, label) {
+      const self = this;
+
+      const valueDetails = selection.append('div')
+        .attr('class', 'legend-value-details')
+        .style('display', 'none')
+        // .style('opacity', '1 !important')
+        .style('padding', '4px')
+        .style('position', 'absolute')
+        .style('background', '#FFF');
+      selection.on('click', () => {
+        if(valueDetails.style('display') === 'none') {
+          self.hideAllDetails();
+          valueDetails.style('display', 'block');
+        } else {
+          valueDetails.style('display', 'none');
+        }
+      });
+      const filterButtonGroup = valueDetails.append('div')
+        .attr('class', 'kuiButtonGroup kuiButtonGroup--united kuiButtonGroup--fullWidth');
+      filterButtonGroup.append('button')
+        .attr('class', 'kuiButton kuiButton--basic kuiButton--small')
+        .attr('arial-label', 'Filter for value ' + label)
+        //  .on('click', () => {
+        // TODO: Filter
+        //  })
+        .append('span')
+        .attr('class', 'kuiIcon fa-search-plus');
+      filterButtonGroup.append('button')
+        .attr('class', 'kuiButton kuiButton--basic kuiButton--small')
+        .attr('arial-label', 'Filter out value ' + label)
+        //.on('click', () => {
+        // TODO: Filter
+        //})
+        .append('span')
+        .attr('class', 'kuiIcon fa-search-minus');
+      const colorPicker = valueDetails.append('div')
+        .attr('class', 'legend-value-color-picker')
+        .attr('role', 'listbox');
+      colorPicker.append('span')
+        .attr('id', self.legendId + 'ColorPickerDesc')
+        .attr('class', 'kuiScreenReaderOnly')
+        .text('Set color for value ' + label);
+
+      COLOR_CHOICES.forEach(colorChoice => {
+        colorPicker.append('i')
+          .attr('class', 'fa dot fa-circle' + (self.data.getColorFunc()(label) === colorChoice ? '-o' : ''))
+          .style('color', colorChoice)
+          .on('click', () => self.setColor(label, colorChoice));
+
+      });
+    }
+
+
+    // TODO: sure would be nice to use the dispatcher
     // addEvents(element) {
     //   const events = this.events;
     //
@@ -203,6 +238,11 @@ export function VislibLibChartLegendProvider(Private) {
     //     .call(events.addClickEvent());
     // }
 
+    /**
+     * Updates color for label, causing chart color to update
+     * @param label data label to update color for
+     * @param color new color string
+     */
     setColor(label, color) {
       const uiState = this.visConfig.data.uiState;
       const colors = uiState.get('vis.colors') || {};
@@ -216,32 +256,74 @@ export function VislibLibChartLegendProvider(Private) {
     }
 
 
+    /**
+     * Toggles display of the legend panel
+     * @returns {*}
+     */
     toggle() {
       return this.data.uiState.set('vis.legendOpen', !this.expanded);
     }
 
 
-    highlight(targetEl) {
+    /**
+     * Hides all detail panels for each legend entry
+     */
+    hideAllDetails() {
+      d3.select(this.el)
+        .selectAll('.legend-value-details')
+        .style('display', 'none');
+    }
+
+
+    /**
+     *
+     * @param label
+     * @returns {HTMLElement} containing label contents for specified label
+     */
+    getLabelElement(label) {
+      return d3.select(this.el)
+        .select('.legend-value[data-label=\'' + label + '\'')
+        .node();
+    }
+
+
+    /**
+     *
+     * @param label
+     */
+    handleHighlight(label) {
       if(this.handler && typeof this.handler.highlight === 'function') {
+        const targetEl = this.getLabelElement(label);
         this.handler.highlight.call(targetEl, this.handler.el);
       }
     }
 
 
-    unHighlight(targetEl) {
+    /**
+     *
+     * @param label
+     */
+    handleUnHighlight(label) {
       if(this.handler && typeof this.handler.highlight === 'function') {
+        const targetEl = this.getLabelElement(label);
         this.handler.unHighlight.call(targetEl, this.handler.el);
       }
     }
 
 
-
     // TODO: filter, onLegendEntryKeydown
 
     // TODO: make sure to test heatmap and gauge
+
+    /**
+     *
+     *
+     * @param data
+     * @returns {Array} label text
+     */
     getSeriesLabels(data) {
       if(data && data.data && data.data.series) {
-        return _.compact(_.uniq(data.data.series, 'label')); // TODO: chaining discussion
+        return _.compact(_.uniq(data.data.series, 'label'));
       }
       return [{ label: 'legend loading...' }];
     }
