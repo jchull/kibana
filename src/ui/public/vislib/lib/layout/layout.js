@@ -29,7 +29,6 @@ export function VislibLibLayoutLayoutProvider(Private) {
   const layoutType = Private(VislibLibLayoutLayoutTypesProvider);
   const Axis = Private(VislibLibAxisProvider);
   const ChartTitle = Private(VislibLibChartTitleProvider);
-
   /**
    * Builds the visualization DOM layout
    *

@@ -62,20 +62,26 @@ export function VislibLibChartLegendProvider(Private) {
   };
 
   // TODO: config class for legend, with ui to configure it in visualize
+  /**
+   * Legend visualization for charts
+   *
+   * @class ChartLegend
+   * @constructor
+   * @param handler {Object} Reference to Handler instance
+   * @param visConfig {Object}
+   */
   class ChartLegend extends ErrorHandler {
     constructor(handler, visConfig) {
       super();
       this.visConfig = visConfig;
       this.handler = handler;
-
       this.data = this.visConfig.data;
       this.el = this.visConfig.get('el');
-      this.expanded = this.visConfig.data.uiState.get('vis.legendOpen');
+      this.expanded = this.data.uiState.get('vis.legendOpen');
       this.legendId = htmlIdGenerator()('legend');
-      this.tooltips = [];
       this.legendPosition = this.visConfig.get('legendPosition', 'right');
       this.labels = this.buildLabels(this.visConfig);
-
+      this.showTooltip = this.visConfig.get('tooltip.show', false);
     }
 
 
@@ -96,18 +102,29 @@ export function VislibLibChartLegendProvider(Private) {
     draw() {
       const self = this;
       const legendPositionOpts = legendPositionMap[self.legendPosition];
-      //const formatter = self.data.get('tooltipFormatter');
-      //const showTooltip = self.visConfig.get('tooltip.show');
 
       // TODO: ARIA?
       return function (selection) {
         selection.each(function () {
           const vislibChart = d3.select(this);
+          if(self.showTooltip) {
+            self.tooltip = d3.select('body')
+              .append('div')
+              .attr('class', 'legend-tooltip')
+              .style('opacity', 0)
+              .style('position', 'absolute')
+              .style('padding', '2px')
+              .style('color', '#FFF')
+              .style('background', '#000')
+              .style('border-radius', '3px')
+              .style('z-index', 1000);
+          }
           vislibChart.style('flex-direction', legendPositionOpts.flexDirection)
             .append('div')
             .attr('id', self.legendId)
             .attr('class', 'vislib-legend legend-col-wrapper')
-            .attr('focusable', 'true')
+            .data([self.data])
+            // .attr('focusable', 'true')
             // .on('keypress', () => {
             //   if(d3.event.keyCode === keyCodes.ESCAPE && self.expanded){
             //     self.toggle();
@@ -141,11 +158,12 @@ export function VislibLibChartLegendProvider(Private) {
      */
     renderLabels(selection, labelConfig) {
       const self = this;
-
-      const color = self.data.getColorFunc()(labelConfig.label);
+      const label = labelConfig.label;
+      const color = self.data.getColorFunc()(label);
       const li = selection.append('li')
         .attr('class', 'legend-value color')
-        .attr('data-label', labelConfig.label);
+        .data([label])
+        .attr('data-label', label);
       if(['top', 'bottom'].indexOf(self.legendPosition) >= 0) {
         li.style('display', 'inline-block');
       }
@@ -154,19 +172,19 @@ export function VislibLibChartLegendProvider(Private) {
 
       const title = valueContainer.append('div')
         .attr('class', 'legend-value-title legend-value-truncate') // TODO: handle full
-        .attr('data-label', labelConfig.label)
-        .on('mouseenter', () => self.handleHighlight(labelConfig.label))
-        .on('mouseleave', () => self.handleUnHighlight(labelConfig.label));
+        .data([label])
+        .attr('data-label', label)
+        .on('mouseenter', () => self.handleHighlight(label))
+        .on('mouseleave', () => self.handleUnHighlight(label));
 
-      // TODO: vislib tooltip wants to be in a viz container, does not seem to work without some changes
       title.append('i')
         .attr('class', 'fa fa-circle')
         .style('color', color);
       title.append('span')
         .style('margin-left', '4px')
-        .text(labelConfig.label);
+        .text(label);
 
-      self.renderDetail(valueContainer, labelConfig.label);
+      self.renderDetail(valueContainer, label);
 
     }
 
@@ -182,7 +200,6 @@ export function VislibLibChartLegendProvider(Private) {
       const valueDetails = selection.append('div')
         .attr('class', 'legend-value-details')
         .style('display', 'none')
-        // .style('opacity', '1 !important')
         .style('padding', '4px')
         .style('position', 'absolute')
         .style('background', '#FFF');
@@ -230,16 +247,6 @@ export function VislibLibChartLegendProvider(Private) {
     }
 
 
-    // TODO: sure would be nice to use the dispatcher
-    // addEvents(element) {
-    //   const events = this.events;
-    //
-    //   return element
-    //     .call(events.addHoverEvent())
-    //     .call(events.addMouseoutEvent())
-    //     .call(events.addClickEvent());
-    // }
-
     /**
      * Updates color for label, causing chart color to update
      * @param label data label to update color for
@@ -247,7 +254,7 @@ export function VislibLibChartLegendProvider(Private) {
      */
     // TODO: Gauge color not working
     setColor(label, color) {
-      const uiState = this.visConfig.data.uiState;
+      const uiState = this.data.uiState;
       const colors = uiState.get('vis.colors') || {};
       if(colors[label] === color) {
         delete colors[label];
@@ -295,8 +302,24 @@ export function VislibLibChartLegendProvider(Private) {
      */
     // TODO: Heatmap does not work either direction, labels.... type is not heatmap?
     handleHighlight(label) {
-      if(label && this.handler && typeof this.handler.highlight === 'function') {
-        const targetEl = this.getLabelElement(label);
+      const self = this;
+      if(self.tooltip) {
+        self.tooltip.transition()
+          .duration(200)
+          .style('opacity', .9);
+        self.tooltip.selectAll('*')
+          .remove();
+        const tooltipContent = self.tooltip.html(label)
+          .style('top', d3.event.pageY + 'px');
+        if(self.legendPosition === 'right') {
+          tooltipContent.style('right', '60px');
+        } else {
+          tooltipContent.style('left', d3.event.pageX + 'px');
+        }
+      }
+
+      if(label && self.handler && typeof self.handler.highlight === 'function') {
+        const targetEl = self.getLabelElement(label);
         this.handler.highlight.call(targetEl, this.handler.el);
       }
     }
@@ -307,6 +330,12 @@ export function VislibLibChartLegendProvider(Private) {
      * @param label
      */
     handleUnHighlight(label) {
+      const self = this;
+      if(self.tooltip) {
+        self.tooltip.transition()
+          .duration(500)
+          .style('opacity', 0);
+      }
       if(label && this.handler && typeof this.handler.highlight === 'function') {
         const targetEl = this.getLabelElement(label);
         this.handler.unHighlight.call(targetEl, this.handler.el);
@@ -337,9 +366,15 @@ export function VislibLibChartLegendProvider(Private) {
     }
 
 
+    /**
+     * Removes legend from container and cleans up tooltips
+     */
     destroy() {
-      // TODO: clean up
-
+      d3.select(this.el)
+        .select('.vislib-legend')
+        .remove();
+      d3.select('body .legend-tooltip')
+        .remove();
     }
   }
 
