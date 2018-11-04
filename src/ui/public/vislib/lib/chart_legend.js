@@ -80,7 +80,8 @@ export function VislibLibChartLegendProvider(Private) {
       this.legendId = htmlIdGenerator()('legend');
       this.legendPosition = this.visConfig.get('legendPosition', 'right');
       this.labels = [{ label: 'legend loading...' }];
-      this.showTooltip = this.visConfig.get('tooltip.show', false);
+      this.tooltip = this.showTooltip = this.visConfig.get('tooltip.show', false);
+
     }
 
 
@@ -109,6 +110,9 @@ export function VislibLibChartLegendProvider(Private) {
         selection.each(function () {
           const vislibChart = d3.select(this);
           if(self.showTooltip) {
+            d3.select('body')
+              .selectAll('.legend-tooltip')
+              .remove();
             self.tooltip = d3.select('body')
               .append('div')
               .attr('class', 'legend-tooltip')
@@ -125,12 +129,6 @@ export function VislibLibChartLegendProvider(Private) {
             .attr('id', self.legendId)
             .attr('class', 'vislib-legend legend-col-wrapper')
             .data([self.data])
-            // .attr('focusable', 'true')
-            // .on('keypress', () => {
-            //   if(d3.event.keyCode === keyCodes.ESCAPE && self.expanded){
-            //     self.toggle();
-            //   }
-            // })
             .append('button')
             .attr('class', 'kuiCollapseButton legend-collapse-button')
             .attr('aria-label', 'Toggle Legend')
@@ -289,7 +287,7 @@ export function VislibLibChartLegendProvider(Private) {
      */
     getLabelElement(label) {
       return d3.select(this.el)
-        .select('.legend-value[data-label=\'' + label + '\'')
+        .select(`.legend-value[data-label='${label}`)
         .node();
     }
 
@@ -340,8 +338,6 @@ export function VislibLibChartLegendProvider(Private) {
     }
 
 
-    // TODO: filter, onLegendEntryKeydown
-
     /**
      *
      * @param config
@@ -382,13 +378,14 @@ export function VislibLibChartLegendProvider(Private) {
 
 
     /**
-     * Removes legend from container and cleans up tooltips
+     * Removes legend from container and cleans up tooltip
      */
     destroy() {
       d3.select(this.el)
         .select('.vislib-legend')
         .remove();
-      d3.select('body .legend-tooltip')
+      d3.select('body')
+        .selectAll('.legend-tooltip')
         .remove();
     }
   }
