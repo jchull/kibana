@@ -81,7 +81,6 @@ export function VislibLibChartLegendProvider(Private) {
       this.legendPosition = this.visConfig.get('legendPosition', 'right');
       this.labels = [{ label: 'legend loading...' }];
       this.tooltip = this.showTooltip = this.visConfig.get('tooltip.show', false);
-
     }
 
 
@@ -198,14 +197,19 @@ export function VislibLibChartLegendProvider(Private) {
 
       const valueDetails = selection.append('div')
         .attr('class', 'legend-value-details')
+        .attr('data-label', label)
         .style('display', 'none')
         .style('padding', '4px')
         .style('position', 'absolute')
-        .style('background', '#FFF');
+        .style('box-shadow', '2px 2px 3px #222');
       selection.on('click', () => {
         if(valueDetails.style('display') === 'none') {
           self.hideAllDetails();
-          valueDetails.style('display', 'block');
+          const isDark = d3.selectAll('.application.theme-dark')[0].length;
+          valueDetails
+            .style('background', isDark ? '#222' : '#FFF')
+            .style('color', isDark ? '#FFF' : '#000')
+            .style('display', 'block');
         } else {
           valueDetails.style('display', 'none');
         }
