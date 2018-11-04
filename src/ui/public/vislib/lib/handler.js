@@ -69,7 +69,6 @@ export function VisHandlerProvider(Private) {
       this.chartTitle = new ChartTitle(visConfig);
       this.alerts = new Alerts(this, visConfig.get('alerts'));
       this.grid = new Grid(this, visConfig.get('grid'));
-      // TODO: give legend a real config sub-object
       if(this.visConfig.get('addLegend')) {
         this.legend = new Legend(this, visConfig);
       }
