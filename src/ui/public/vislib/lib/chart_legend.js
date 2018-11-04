@@ -61,7 +61,6 @@ export function VislibLibChartLegendProvider(Private) {
     }
   };
 
-  // TODO: config class for legend, with ui to configure it in visualize
   /**
    * Legend visualization for charts
    *
@@ -80,7 +79,7 @@ export function VislibLibChartLegendProvider(Private) {
       this.expanded = this.data.uiState.get('vis.legendOpen');
       this.legendId = htmlIdGenerator()('legend');
       this.legendPosition = this.visConfig.get('legendPosition', 'right');
-      this.labels = this.buildLabels(this.visConfig);
+      this.labels = [{ label: 'legend loading...' }];
       this.showTooltip = this.visConfig.get('tooltip.show', false);
     }
 
@@ -90,8 +89,11 @@ export function VislibLibChartLegendProvider(Private) {
      * @returns {*}
      */
     render() {
-      return d3.select(this.el)
-        .call(this.draw());
+      const self = this;
+      const container = d3.select(self.el);
+      container.select('.vislib-legend')
+        .remove();
+      container.call(self.draw());
     }
 
 
@@ -102,8 +104,7 @@ export function VislibLibChartLegendProvider(Private) {
     draw() {
       const self = this;
       const legendPositionOpts = legendPositionMap[self.legendPosition];
-
-      // TODO: ARIA?
+      self.labels = self.buildLabels(this.visConfig);
       return function (selection) {
         selection.each(function () {
           const vislibChart = d3.select(this);
@@ -216,17 +217,15 @@ export function VislibLibChartLegendProvider(Private) {
       filterButtonGroup.append('button')
         .attr('class', 'kuiButton kuiButton--basic kuiButton--small')
         .attr('arial-label', 'Filter for value ' + label)
-        //  .on('click', () => {
-        // TODO: Filter
-        //  })
+        .attr('data-label', label)
+        .on('click', () => self.handleFilterClick())
         .append('span')
         .attr('class', 'kuiIcon fa-search-plus');
       filterButtonGroup.append('button')
         .attr('class', 'kuiButton kuiButton--basic kuiButton--small')
         .attr('arial-label', 'Filter out value ' + label)
-        //.on('click', () => {
-        // TODO: Filter
-        //})
+        .attr('data-label', label)
+        .on('click', () => self.handleFilterClick(true))
         .append('span')
         .attr('class', 'kuiIcon fa-search-minus');
       const colorPicker = valueDetails.append('div')
@@ -252,7 +251,6 @@ export function VislibLibChartLegendProvider(Private) {
      * @param label data label to update color for
      * @param color new color string
      */
-    // TODO: Gauge color not working
     setColor(label, color) {
       const uiState = this.data.uiState;
       const colors = uiState.get('vis.colors') || {};
@@ -300,7 +298,6 @@ export function VislibLibChartLegendProvider(Private) {
      *
      * @param label
      */
-    // TODO: Heatmap does not work either direction, labels.... type is not heatmap?
     handleHighlight(label) {
       const self = this;
       if(self.tooltip) {
@@ -345,24 +342,42 @@ export function VislibLibChartLegendProvider(Private) {
 
     // TODO: filter, onLegendEntryKeydown
 
-    // TODO: make sure to test heatmap and gauge, it seems they do not extend chart?
-
     /**
      *
      * @param config
      */
     buildLabels(config) {
-      const chartType = config.get('type');
+      const chartType = this.handler.vis.visConfigArgs.type;
+
       if(!config.data || !config.data.data) {
         return [{ label: 'legend loading...' }];
       }
-      if(chartType === 'pie') {
-        return Data.prototype.pieNames(config.data.data.columns || config.data.data.rows || [config.data.data]);
+
+      let labels;
+      if(['heatmap', 'gauge'].includes(chartType)) {
+        labels = this.handler.vis.getLegendLabels();
+        if(!labels) {
+          setTimeout(() => this.render(), 100); // TODO: kinda gross
+          labels = [{ label: 'heatmap loading...' }];
+        } else {
+          labels = labels.map((label) => {return { label };});
+        }
+      } else if(chartType === 'pie') {
+        labels = Data.prototype.pieNames(config.data.data.columns || config.data.data.rows || [config.data.data]);
       } else {
-        return config.data.getLabels()
+        labels = config.data.getLabels()
           .map((label) => {return { label };});
       }
+      return labels;
 
+    }
+
+
+    handleFilterClick(/*negate*/) {
+      // const event = d3.event;
+      // const label = event.target.getAttribute('data-label');
+      // const series = this.data.data.series;
+      // const targetSeries = series.find((ser) => ser.label === label);
     }
 
 
