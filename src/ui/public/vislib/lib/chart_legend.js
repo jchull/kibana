@@ -17,14 +17,12 @@
  * under the License.
  */
 
-import { VislibLibErrorHandlerProvider } from './_error_handler';
-import d3                                from 'd3';
-import { htmlIdGenerator }               from '@elastic/eui';
-import { VislibLibDataProvider }         from '../lib/data';
+import d3                        from 'd3';
+import { htmlIdGenerator }       from '@elastic/eui';
+import { VislibLibDataProvider } from './data';
 
 
 export function VislibLibChartLegendProvider(Private) {
-  const ErrorHandler = Private(VislibLibErrorHandlerProvider);
   const Data = Private(VislibLibDataProvider);
 
   const COLOR_CHOICES = [
@@ -61,6 +59,8 @@ export function VislibLibChartLegendProvider(Private) {
     }
   };
 
+  const LOADING_LABEL = { 'label': 'legend loading...' };
+
   /**
    * Legend visualization for charts
    *
@@ -69,24 +69,21 @@ export function VislibLibChartLegendProvider(Private) {
    * @param handler {Object} Reference to Handler instance
    * @param visConfig {Object}
    */
-  class ChartLegend extends ErrorHandler {
+  class ChartLegend {
     constructor(handler, visConfig) {
-      super();
       this.visConfig = visConfig;
       this.handler = handler;
       this.data = this.visConfig.data;
-      this.el = this.visConfig.get('el');
-      this.expanded = this.data.uiState.get('vis.legendOpen');
+      this.el = this.handler.el;
+      this.expanded = this.data.uiState.get('vis.legendOpen', false);
       this.legendId = htmlIdGenerator()('legend');
       this.legendPosition = this.visConfig.get('legendPosition', 'right');
-      this.labels = [{ label: 'legend loading...' }];
       this.tooltip = this.showTooltip = this.visConfig.get('tooltip.show', false);
     }
 
 
     /**
-     *
-     * @returns {*}
+     * Removes any existing legend from container and renders a new one
      */
     render() {
       const self = this;
@@ -104,7 +101,6 @@ export function VislibLibChartLegendProvider(Private) {
     draw() {
       const self = this;
       const legendPositionOpts = legendPositionMap[self.legendPosition];
-      self.labels = self.buildLabels(this.visConfig);
       return function (selection) {
         selection.each(function () {
           const vislibChart = d3.select(this);
@@ -141,7 +137,8 @@ export function VislibLibChartLegendProvider(Private) {
             const ul = vislibChart.select('.vislib-legend')
               .append('ul')
               .attr('class', 'legend-ul');
-            self.labels.forEach(labelConfig => self.renderLabels(ul, labelConfig));
+            self.buildLabels()
+              .forEach(labelConfig => self.renderLabels(ul, labelConfig));
           }
 
         });
@@ -205,7 +202,8 @@ export function VislibLibChartLegendProvider(Private) {
       selection.on('click', () => {
         if(valueDetails.style('display') === 'none') {
           self.hideAllDetails();
-          const isDark = d3.selectAll('.application.theme-dark')[0].length;
+          const isDark = !d3.selectAll('.application.theme-dark')
+            .empty();
           valueDetails
             .style('background', isDark ? '#222' : '#FFF')
             .style('color', isDark ? '#FFF' : '#000')
@@ -243,7 +241,6 @@ export function VislibLibChartLegendProvider(Private) {
           .attr('class', 'fa dot fa-circle' + (self.data.getColorFunc()(label) === colorChoice ? '-o' : ''))
           .style('color', colorChoice)
           .on('click', () => self.setColor(label, colorChoice));
-
       });
     }
 
@@ -302,6 +299,10 @@ export function VislibLibChartLegendProvider(Private) {
      */
     handleHighlight(label) {
       const self = this;
+      if(!label || !self.handler || typeof self.handler.highlight !== 'function') {
+        return;
+      }
+
       if(self.tooltip) {
         self.tooltip.transition()
           .duration(200)
@@ -316,11 +317,8 @@ export function VislibLibChartLegendProvider(Private) {
           tooltipContent.style('left', d3.event.pageX + 'px');
         }
       }
-
-      if(label && self.handler && typeof self.handler.highlight === 'function') {
-        const targetEl = self.getLabelElement(label);
-        this.handler.highlight.call(targetEl, this.handler.el);
-      }
+      const targetEl = self.getLabelElement(label);
+      self.handler.highlight.call(targetEl, self.el);
     }
 
 
@@ -330,45 +328,42 @@ export function VislibLibChartLegendProvider(Private) {
      */
     handleUnHighlight(label) {
       const self = this;
+      if(!label || !self.handler || typeof self.handler.unHighlight !== 'function') {
+        return;
+      }
       if(self.tooltip) {
         self.tooltip.transition()
           .duration(500)
           .style('opacity', 0);
       }
-      if(label && this.handler && typeof this.handler.highlight === 'function') {
-        const targetEl = this.getLabelElement(label);
-        this.handler.unHighlight.call(targetEl, this.handler.el);
-      }
+      const targetEl = self.getLabelElement(label);
+      self.handler.unHighlight.call(targetEl, self.el);
     }
 
 
     /**
-     *
-     * @param config
+     * build labels to display or show loading message
      */
-    buildLabels(config) {
-      const chartType = this.handler.vis.visConfigArgs.type;
+    buildLabels() {
+      const self = this;
+      const chartType = self.handler.vis.visConfigArgs.type;
 
-      if(!config.data || !config.data.data) {
-        return [{ label: 'legend loading...' }];
+      if(!self.data || !self.data.data) {
+        return [LOADING_LABEL];
       }
 
-      let labels;
       if(['heatmap', 'gauge'].includes(chartType)) {
-        labels = this.handler.vis.getLegendLabels();
+        const labels = self.handler.vis.getLegendLabels();
         if(!labels) {
-          setTimeout(() => this.render(), 100); // TODO: kinda gross
-          labels = [{ label: 'heatmap loading...' }];
-        } else {
-          labels = labels.map((label) => {return { label };});
+          setTimeout(() => self.render(), 100);
+          return [LOADING_LABEL];
         }
+        return labels.map((label) => {return { label };});
       } else if(chartType === 'pie') {
-        labels = Data.prototype.pieNames(config.data.data.columns || config.data.data.rows || [config.data.data]);
-      } else {
-        labels = config.data.getLabels()
-          .map((label) => {return { label };});
+        return Data.prototype.pieNames(self.data.data.columns || self.data.data.rows || [self.data.data]);
       }
-      return labels;
+      return self.data.getLabels()
+        .map((label) => {return { label };});
 
     }
 
@@ -386,7 +381,7 @@ export function VislibLibChartLegendProvider(Private) {
      */
     destroy() {
       d3.select(this.el)
-        .select('.vislib-legend')
+        .selectAll('.vislib-legend')
         .remove();
       d3.select('body')
         .selectAll('.legend-tooltip')
