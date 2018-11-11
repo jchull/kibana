@@ -70,7 +70,7 @@ export function VisHandlerProvider(Private) {
       this.alerts = new Alerts(this, visConfig.get('alerts'));
       this.grid = new Grid(this, visConfig.get('grid'));
       if(this.visConfig.get('addLegend')) {
-        this.legend = new Legend(this, visConfig);
+        this.legend = new Legend(this);
       }
 
       if (visConfig.get('type') === 'point_series') {
