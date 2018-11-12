@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import d3 from 'd3';
+import d3                  from 'd3';
 import { htmlIdGenerator } from '@elastic/eui';
 
 
@@ -91,7 +91,7 @@ export function VislibLibChartLegendProvider() {
 
     /**
      * Gets the function which adds chart legend to DOM
-     * @returns {Function}
+     * @returns {Function} D3 selection handler for legend
      */
     draw() {
       const legendPositionOpts = legendPositionMap[this.legendPosition];
@@ -155,6 +155,7 @@ export function VislibLibChartLegendProvider() {
 
     /**
      * Gets a function which renders all the legend list items
+     *
      * @returns {Function} takes (selection, labelConfig)
      */
     renderLabels(labels) {
@@ -194,7 +195,9 @@ export function VislibLibChartLegendProvider() {
 
 
     /**
-     * Add
+     * Toggles visibility of legend label details panel
+     *
+     * @returns {Function} (d) D3 selection handler function
      */
     toggleDetail() {
       const colorFn = this.data.getColorFunc();
@@ -218,7 +221,9 @@ export function VislibLibChartLegendProvider() {
               position: 'absolute',
               'box-shadow': '2px 2px 3px #222',
               background: isDark ? '#222' : '#FFF',
-              color: isDark ? '#FFF' : '#000'
+              color: isDark ? '#FFF' : '#000',
+              bottom: this.legendPosition === 'bottom' ? `${labelContainer.node()
+                .getBoundingClientRect().height + 5}px` : null
             });
           const filterButtonGroup = detailContainer.append('div')
             .attr('class', 'kuiButtonGroup kuiButtonGroup--united kuiButtonGroup--fullWidth');
@@ -269,7 +274,6 @@ export function VislibLibChartLegendProvider() {
         } else {
           this.hideAllDetails();
         }
-
       };
     }
 
@@ -302,6 +306,8 @@ export function VislibLibChartLegendProvider() {
 
     /**
      * Hides all legend detail panels in the page
+     *
+     * @param skipAnimation if true, will skip transition animation
      */
     hideAllDetails(skipAnimation) {
       d3.select(this.el)
@@ -315,7 +321,7 @@ export function VislibLibChartLegendProvider() {
 
 
     /**
-     *
+     * Finds the element given the label text by matching data-label attr
      * @param label
      * @returns {HTMLElement} containing label contents for specified label
      */
@@ -339,8 +345,8 @@ export function VislibLibChartLegendProvider() {
 
 
     /**
-     *
-     * @param label
+     * Handles mouseenter event on legend labels
+     * @param label data-label attribute value
      */
     handleHighlight(label) {
       if(!label || !this.handler || typeof this.handler.highlight !== 'function') {
@@ -349,15 +355,13 @@ export function VislibLibChartLegendProvider() {
 
       if(d3.event && this.tooltipId) {
         d3.select(`#${this.tooltipId}`)
-          .html(label)
           .style({
+            opacity: '0.9',
             top: `${d3.event.pageY}px`,
-            right: this.legendPosition === 'right' ? '60px' : null,
-            left: this.legendPosition !== 'right' ? `${d3.event.pageX}px` : null
+            right: () => (this.legendPosition === 'right' ? `${window.innerWidth - d3.event.pageX}px` : null),
+            left: () => (this.legendPosition !== 'right' ? `${d3.event.pageX}px` : null)
           })
-          .transition()
-          .duration(300)
-          .style('opacity', '0.9');
+          .html(label);
       }
       const targetEl = this.findLabelElement(label);
       this.handler.highlight.call(targetEl, this.el);
@@ -365,8 +369,8 @@ export function VislibLibChartLegendProvider() {
 
 
     /**
-     *
-     * @param label
+     * Handles mouseleave event on legend labels
+     * @param label data-label attribute value
      */
     handleUnHighlight(label) {
       if(!label || !this.handler || typeof this.handler.unHighlight !== 'function') {
@@ -374,8 +378,6 @@ export function VislibLibChartLegendProvider() {
       }
       if(this.tooltipId) {
         d3.select(`#${this.tooltipId}`)
-          .transition()
-          .duration(700)
           .style('opacity', 0);
       }
       const targetEl = this.findLabelElement(label);
