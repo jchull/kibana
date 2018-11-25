@@ -69,9 +69,6 @@ export function VisHandlerProvider(Private) {
       this.chartTitle = new ChartTitle(visConfig);
       this.alerts = new Alerts(this, visConfig.get('alerts'));
       this.grid = new Grid(this, visConfig.get('grid'));
-      if(this.visConfig.get('addLegend')) {
-        this.legend = new Legend(this);
-      }
 
       if (visConfig.get('type') === 'point_series') {
         this.data.stackData(this);
@@ -79,6 +76,10 @@ export function VisHandlerProvider(Private) {
 
       if (visConfig.get('resize', false)) {
         this.resize = visConfig.get('resize');
+      }
+
+      if(this.visConfig.get('addLegend')) {
+        this.legend = new Legend(this);
       }
 
       this.layout = new Layout(visConfig);

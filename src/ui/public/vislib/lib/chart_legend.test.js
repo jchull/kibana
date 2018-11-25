@@ -92,30 +92,47 @@ describe('Vislib Chart Legend Class Test Suite', () => {
       },
       data: {
         hits: 15,
-        series: [{
-          'label': 'First Label',
-          'aggLabel': 'Count',
-          'aggId': '1',
-          'values': []
-        },
-        {
-          'label': 'Second Label',
-          'aggLabel': 'Count',
-          'aggId': '1',
-          'values': []
-        },
-        {
-          'label': 'Third Label',
-          'aggLabel': 'Count',
-          'aggId': '1',
-          'values': []
-        },
-        {
-          'label': 'Fourth Label',
-          'aggLabel': 'Count',
-          'aggId': '1',
-          'values': []
-        }
+        series: [
+          {
+            'label': 'First Label',
+            'aggLabel': 'Count',
+            'aggId': '1',
+            'values': [
+              {
+                aggConfigResult: {
+                  getPath: () => ([{ key: 'First Label', type: 'bucket', rawData: {} }]),
+                  key: 'First Label',
+                  type: 'bucket',
+                  rawData: {
+                    table: {
+                      columns: [],
+                      rows: []
+                    },
+                    column: 0,
+                    row: 1
+                  }
+                }
+              }
+            ]
+          },
+          {
+            'label': 'Second Label',
+            'aggLabel': 'Count',
+            'aggId': '1',
+            'values': []
+          },
+          {
+            'label': 'Third Label',
+            'aggLabel': 'Count',
+            'aggId': '1',
+            'values': []
+          },
+          {
+            'label': 'Fourth Label',
+            'aggLabel': 'Count',
+            'aggId': '1',
+            'values': []
+          }
         ]
       }
     }
@@ -146,7 +163,8 @@ describe('Vislib Chart Legend Class Test Suite', () => {
         },
         getLegendLabels() {
           return legendLabels;
-        }
+        },
+        emit(type, data) {}
       }
     };
 
@@ -214,7 +232,6 @@ describe('Vislib Chart Legend Class Test Suite', () => {
       legend.render();
 
       const chartWrapper = d3.select(legend.el);
-      // expect(chartWrapper.style('flex-direction')).toBe('column-reverse');
       expect(chartWrapper.select('i')
         .attr('class'))
         .toMatch(/fa-chevron-circle-down/);
@@ -232,7 +249,6 @@ describe('Vislib Chart Legend Class Test Suite', () => {
       legend.render();
 
       const chartWrapper = d3.select(legend.el);
-      // expect(chartWrapper.style('flex-direction')).toBe('column');
       expect(chartWrapper.select('i')
         .attr('class'))
         .toMatch(/fa-chevron-circle-up/);
@@ -463,8 +479,7 @@ describe('Vislib Chart Legend Class Test Suite', () => {
     let labels;
 
     beforeEach(() => {
-      renderSpy = jest.spyOn(legend, 'render')
-        .mockImplementation();
+      renderSpy = jest.spyOn(legend, 'render');
     });
 
     afterEach(() => {
@@ -606,13 +621,10 @@ describe('Vislib Chart Legend Class Test Suite', () => {
         .toBe('block');
     });
 
-    it('should hide all panels when clicked outside detail panel', () => {
-      // TODO:
-    });
   });
 
 
-  describe('dark/light  mode', () => {
+  describe('dark/light mode', () => {
     it('should show dark theme color panel when dark mode is enabled', () => {
       d3.select('body')
         .attr('class', 'application theme-dark');
@@ -650,7 +662,118 @@ describe('Vislib Chart Legend Class Test Suite', () => {
   });
 
 
+  describe('filters', () => {
+
+    it('should return a function', () => {
+      expect(_.isFunction(legend.filterAddHandler()))
+        .toBe(true);
+    });
+
+    it('should emit filter update on button click', () => {
+      const emitSpy = jest.spyOn(handler.vis, 'emit');
+
+      const filterClickHandler = legend.filterAddHandler();
+      filterClickHandler({ label: 'First Label' });
+
+      expect(emitSpy).toHaveBeenCalled();
+    });
+
+
+    it('should not show filter buttons if bucket is not found for label', () => {
+      // gauge and heatmap, as well as some others end up in this category
+      expect(legend.findBucket('Second Label')).toBeFalsy();
+      legend.render();
+
+      const labelElement = legend.findLabelElement('Second Label');
+      expect(labelElement).toBeDefined();
+
+      labelElement.querySelector('.legend-value-title')
+        .dispatchEvent(new MouseEvent('click'));
+      d3.timer.flush();
+
+      expect(d3.select(labelElement)
+        .selectAll('.fa-search-plus')
+        .empty()).toBeTruthy();
+
+      const labelWithFilterElement = legend.findLabelElement('First Label');
+      expect(labelWithFilterElement).toBeDefined();
+
+      labelWithFilterElement.querySelector('.legend-value-title')
+        .dispatchEvent(new MouseEvent('click'));
+      d3.timer.flush();
+
+      expect(d3.select(labelWithFilterElement)
+        .selectAll('.fa-search-plus')
+        .size()).toEqual(1);
+
+    });
+
+
+    it('should handle filter negation', () => {
+      const emitSpy = jest.spyOn(handler.vis, 'emit')
+        .mockImplementation((type, data) => {
+          expect(data.meta.negate).toBeTruthy();
+        });
+      const filterClickHandler = legend.filterAddHandler(true);
+      filterClickHandler({ label: 'First Label' });
+      expect(emitSpy).toHaveBeenCalled();
+
+    });
+
+  });
+
+
+  describe('findBucket function', () => {
+    it('should return falsy value if label is not found', () => {
+      expect(legend.findBucket()).toBeFalsy();
+      expect(legend.findBucket('not present')).toBeFalsy();
+      expect(legend.findBucket(-1)).toBeFalsy();
+    });
+
+    it('should find bucket for series data', () => {
+      expect(legend.findBucket('First Label').key).toEqual('First Label');
+    });
+
+    it('should find bucket for slice data', () => {
+      delete handler.visConfig.data.data.series;
+      handler.visConfig.data.data.slices = { children: [
+        {
+          aggConfigResult: {
+            getPath: () => ([{ key: 'Pie Label 1', type: 'bucket', rawData: {} }]),
+            key: 'Pie Label 1',
+            type: 'bucket',
+            rawData: {
+              table: {
+                columns: [],
+                rows: []
+              },
+              column: 0,
+              row: 1
+            }
+          }
+        },
+        {
+          aggConfigResult: {
+            getPath: () => ([{ key: 'Pie Label 3', type: 'bucket', rawData: {} }]),
+            key: 'Pie Label 3',
+            type: 'bucket',
+            rawData: {
+              table: {
+                columns: [],
+                rows: []
+              },
+              column: 0,
+              row: 3
+            }
+          }
+        }
+      ] };
+      expect(legend.findBucket('Pie Label 1').key).toEqual('Pie Label 1');
+      expect(legend.findBucket('Pie Label 3').key).toEqual('Pie Label 3');
+      expect(legend.findBucket()).toBeFalsy();
+
+    });
+
+  });
 })
 ;
-
-

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import d3                  from 'd3';
+import d3 from 'd3';
 import { htmlIdGenerator } from '@elastic/eui';
 
 
@@ -235,26 +235,28 @@ export function VislibLibChartLegendProvider() {
               bottom: this.legendPosition === 'bottom' ? `${labelContainer.node()
                 .getBoundingClientRect().height + 5}px` : null
             });
-          const filterButtonGroup = detailContainer.append('div')
-            .attr('class', 'kuiButtonGroup kuiButtonGroup--united kuiButtonGroup--fullWidth');
-          filterButtonGroup.append('button')
-            .attr({
-              class: 'kuiButton kuiButton--basic kuiButton--small',
-              'arial-label': `Filter for value ${d.label}`,
-              'data-label': d.label
-            })
-            .on('click', () => this.filterClickHandler(d.label, false))
-            .append('span')
-            .attr('class', 'kuiIcon fa-search-plus');
-          filterButtonGroup.append('button')
-            .attr({
-              class: 'kuiButton kuiButton--basic kuiButton--small',
-              'arial-label': `Filter out value ${d.label}`,
-              'data-label': d.label
-            })
-            .on('click', () => this.filterClickHandler(d.label, true))
-            .append('span')
-            .attr('class', 'kuiIcon fa-search-minus');
+          if(!d.hideFilter) {
+            const filterButtonGroup = detailContainer.append('div')
+              .attr('class', 'kuiButtonGroup kuiButtonGroup--united kuiButtonGroup--fullWidth');
+            filterButtonGroup.append('button')
+              .attr({
+                class: 'kuiButton kuiButton--basic kuiButton--small',
+                'arial-label': `Filter for value ${d.label}`,
+                'data-label': d.label
+              })
+              .on('click', this.filterAddHandler())
+              .append('span')
+              .attr('class', 'kuiIcon fa-search-plus');
+            filterButtonGroup.append('button')
+              .attr({
+                class: 'kuiButton kuiButton--basic kuiButton--small',
+                'arial-label': `Filter out value ${d.label}`,
+                'data-label': d.label
+              })
+              .on('click', this.filterAddHandler(true))
+              .append('span')
+              .attr('class', 'kuiIcon fa-search-minus');
+          }
           const colorPicker = detailContainer.append('div')
             .attr({
               class: 'legend-value-color-picker',
@@ -320,7 +322,7 @@ export function VislibLibChartLegendProvider() {
      * @param skipAnimation if true, will skip transition animation
      */
     hideAllDetails(skipAnimation) {
-      d3.select(this.el)
+      d3.select('body')
         .selectAll('.legend-value-details')
         .transition(skipAnimation ? 0 : 500)
         .style({
@@ -389,14 +391,17 @@ export function VislibLibChartLegendProvider() {
       }
 
       if(d3.event && this.tooltipId) {
-        d3.select(`#${this.tooltipId}`)
+        const tooltip = d3.select(`#${this.tooltipId}`);
+        tooltip.html(label)
+          .style({
+            top: `${d3.event.pageY + 10}px`,
+            right: () => (this.legendPosition === 'right' ? `${window.innerWidth - d3.event.pageX + 10}px` : null),
+            left: () => (this.legendPosition !== 'right' ? `${d3.event.pageX}px` : null)
+          });
+        tooltip.transition(100)
           .style({
             opacity: '0.9',
-            top: `${d3.event.pageY}px`,
-            right: () => (this.legendPosition === 'right' ? `${window.innerWidth - d3.event.pageX}px` : null),
-            left: () => (this.legendPosition !== 'right' ? `${d3.event.pageX}px` : null)
-          })
-          .html(label);
+          });
       }
       const targetEl = this.findLabelElement(label);
       this.handler.highlight.call(targetEl, this.el);
@@ -412,8 +417,12 @@ export function VislibLibChartLegendProvider() {
         return;
       }
       if(this.tooltipId) {
-        d3.select(`#${this.tooltipId}`)
-          .style('opacity', 0);
+        const tooltip = d3.select(`#${this.tooltipId}`);
+        tooltip.transition(300)
+          .style({
+            opacity: 0
+          });
+        tooltip.style({ top: '-100px' });
       }
       const targetEl = this.findLabelElement(label);
       this.handler.unHighlight.call(targetEl, this.el);
@@ -436,26 +445,57 @@ export function VislibLibChartLegendProvider() {
           setTimeout(() => this.render(), 100);
           return [LOADING_LABEL];
         }
-        return labels.map(label => ({ label }));
+        return labels.map(label => ({
+          label,
+          hideFilter: !this.findBucket(label)
+        }));
       } else if(chartType === 'pie') {
         return this.data.pieNames(this.data.data.columns || this.data.data.rows || [this.data.data]);
       }
       return this.data.getLabels()
-        .map(label => ({ label }));
+        .map(label => ({
+          label,
+          hideFilter: !this.findBucket(label)
+        }));
 
     }
 
-
-    filterClickHandler(label, negate = false) {
-      return label => this.handleFilterClick(label, negate);
+    /**
+     * Searches for bucket in data for given label. Also used to determine if filter buttons should show for label.
+     * @param label
+     * @returns {*}
+     */
+    findBucket(label) {
+      if(!label) return false;
+      const data = this.data.data.series &&
+       this.data.data.series.filter(series => series && series.values)
+         .reduce((acc, cur) => acc.concat(cur.values), []) ||
+       this.data.data.slices && this.data.data.slices.children;
+      return data && data.filter(value => value && value.aggConfigResult && typeof value.aggConfigResult.getPath === 'function')
+        .reduce((acc, cur) => acc.concat(cur.aggConfigResult.getPath()), [])
+        .find(agg => agg && label === agg.key && agg.type === 'bucket' && agg.rawData);
     }
 
-
-    handleFilterClick(/*negate*/) {
-      // const event = d3.event;
-      // const label = event.target.getAttribute('data-label');
-      // const series = this.data.data.series;
-      // const targetSeries = series.find((ser) => ser.label === label);
+    /**
+     * Creates function for handling of click events on filter buttons
+     * @param negate truthy value filters out the clicked bucket
+     * @returns {Function}
+     */
+    filterAddHandler(negate = false) {
+      return d => {
+        if(!d) return false;
+        const bucket = this.findBucket(d.label);
+        if(bucket) {
+          const filter = {
+            data: bucket.rawData.table,
+            columnIndex: bucket.rawData.column,
+            rowIndex: bucket.rawData.row,
+            cellValue: bucket.key,
+            meta: { negate: negate || null }
+          };
+          this.handler.vis.emit('filter', filter);
+        }
+      };
     }
 
 
@@ -466,8 +506,10 @@ export function VislibLibChartLegendProvider() {
       d3.select(this.el)
         .selectAll('.vislib-legend')
         .remove();
-      d3.select(`#${this.tooltipId}`)
-        .remove();
+      if(this.tooltipId) {
+        d3.select(`#${this.tooltipId}`)
+          .remove();
+      }
     }
   }
 
