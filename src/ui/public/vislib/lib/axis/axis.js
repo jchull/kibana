@@ -175,6 +175,14 @@ export function VislibLibAxisProvider(Private) {
             selection.select('g')
               .attr('transform', `translate(${axisWidth},0)`);
           }
+          if (config.get('type') === 'value') {
+            const height = d3.select(chartEl)
+              .select(`.visAxis--x`)
+              .node()
+              .getBoundingClientRect().height;
+            selection
+              .attr('height', height);
+          }
         }
       };
     }
@@ -235,7 +243,7 @@ export function VislibLibAxisProvider(Private) {
           }
         });
 
-        if (self.axisTitle && ['right', 'bottom'].includes(config.get('position'))) {
+        if (config.get('show') && self.axisTitle && ['right', 'bottom'].includes(config.get('position'))) {
           self.axisTitle.render(selection);
         }
 

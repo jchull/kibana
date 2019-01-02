@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import d3 from 'd3';
+import d3                  from 'd3';
 import { htmlIdGenerator } from '@elastic/eui';
 
 
@@ -33,35 +33,21 @@ export function VislibLibChartLegendProvider() {
     '#E0F9D7', '#FCEACA', '#CFFAFF', '#F9E2D2', '#FCE2DE', '#BADFF4', '#F9D9F9', '#DEDAF7'  //7
   ];
 
-  const COLOR_CHOICES = [
-    '#3F6833', '#967302', '#2F575E', '#99440A', '#58140C', '#052B51', '#511749', '#3F2B5B', //6
-    '#508642', '#CCA300', '#447EBC', '#C15C17', '#890F02', '#0A437C', '#6D1F62', '#584477', //2
-    '#629E51', '#E5AC0E', '#64B0C8', '#E0752D', '#BF1B00', '#0A50A1', '#962D82', '#614D93', //4
-    '#7EB26D', '#EAB839', '#6ED0E0', '#EF843C', '#E24D42', '#1F78C1', '#BA43A9', '#705DA0', // Normal
-    '#9AC48A', '#F2C96D', '#65C5DB', '#F9934E', '#EA6460', '#5195CE', '#D683CE', '#806EB7', //5
-    '#B7DBAB', '#F4D598', '#70DBED', '#F9BA8F', '#F29191', '#82B5D8', '#E5A8E2', '#AEA2E0', //3
-    '#E0F9D7', '#FCEACA', '#CFFAFF', '#F9E2D2', '#FCE2DE', '#BADFF4', '#F9D9F9', '#DEDAF7'  //7
-  ];
-
   const LEGEND_COLLAPSE_ICON = 'fa-chevron-circle';
   const legendPositionMap = {
     top: {
-      flexDirection: 'column-reverse',
       iconClass: `${LEGEND_COLLAPSE_ICON}-down`,
       expandedIconClass: `${LEGEND_COLLAPSE_ICON}-up`
     },
     bottom: {
-      flexDirection: 'column',
       iconClass: `${LEGEND_COLLAPSE_ICON}-up`,
       expandedIconClass: `${LEGEND_COLLAPSE_ICON}-down`
     },
     left: {
-      flexDirection: 'row-reverse',
       iconClass: `${LEGEND_COLLAPSE_ICON}-right`,
       expandedIconClass: `${LEGEND_COLLAPSE_ICON}-left`
     },
     right: {
-      flexDirection: 'row',
       iconClass: `${LEGEND_COLLAPSE_ICON}-left`,
       expandedIconClass: `${LEGEND_COLLAPSE_ICON}-right`
     }
@@ -91,10 +77,10 @@ export function VislibLibChartLegendProvider() {
      * Removes any existing legend from container and renders a new one
      */
     render() {
-      d3.select(this.el)
-        .select('.vislib-legend')
+      d3.select(this.el.parentNode)
+        .select('.visLegend')
         .remove();
-      d3.select(this.el)
+      d3.select(this.el.parentNode)
         .call(this.draw());
     }
 
@@ -108,23 +94,24 @@ export function VislibLibChartLegendProvider() {
       const expanded = this.data.uiState.get('vis.legendOpen', false);
 
       return selection => selection.each(() => {
-        const vislibChart = d3.select(this.el)
-          .style('flex-direction', legendPositionOpts.flexDirection);
-        const legendWrapper = vislibChart.append('div')
+        const vislibContainer = d3.select(this.el.parentNode)
+          .classed(`visLib--legend-${this.legendPosition}`, true);
+        const legendWrapper = vislibContainer.append('div')
           .attr({
             id: () => this.legendId,
-            class: 'vislib-legend legend-col-wrapper'
-          });
+            class: `visLegend visLib--legend-${this.legendPosition}`
+          })
+          .classed('expanded', expanded);
         legendWrapper.append('button')
+          .attr('class', 'kuiCollapseButton visLegend__toggle')
           .attr({
-            class: 'kuiCollapseButton legend-collapse-button',
             'aria-label': 'Toggle Legend',
             'aria-expanded': expanded,
             'aria-controls': () => this.legendId
           })
           .on('click', () => this.toggle())
           .append('i')
-          .attr('class', `fa ${expanded ? legendPositionOpts.expandedIconClass : legendPositionOpts.iconClass}`);
+          .attr('class', `kuiIcon fa ${expanded ? legendPositionOpts.expandedIconClass : legendPositionOpts.iconClass}`);
 
         if(expanded) {
           ChartLegend.renderTooltip(this.tooltipId);
@@ -170,25 +157,22 @@ export function VislibLibChartLegendProvider() {
      */
     renderLabels(labels) {
       const colorFn = this.data.getColorFunc();
-      const position = this.legendPosition;
-      const title = d3.select(this.el)
-        .select('.vislib-legend')
+      const title = d3.select(this.el.parentNode)
+        .select('.visLegend')
         .append('ul')
-        .attr('class', 'legend-ul')
+        .attr('class', 'visLegend__list')
         .selectAll('li')
         .data(labels)
         .enter()
         .append('li')
         .attr({
-          class: 'legend-value color',
+          class: 'visLegend__value color',
           'data-label': d => d.label
         })
-        .style('display', ['top', 'bottom'].includes(position) ? 'inline-block' : null)
         .append('div')
-        .attr('class', 'legend-value-container')
-        .append('div')
+        // TODO: when details disclosed, show full label visLegend__valueTitle--full
         .attr({
-          class: 'legend-value-title legend-value-truncate',
+          class: 'visLegend__valueTitle visLegend__valueTitle--truncate',
           'data-label': d => d.label
         })
         .on('mouseenter', this.highlightHandler(true))
@@ -196,11 +180,11 @@ export function VislibLibChartLegendProvider() {
         .on('click', this.toggleDetail());
 
       title.append('i')
-        .attr('class', 'fa fa-circle')
+        .attr('class', 'fa dot fa-circle')
         .style('color', d => colorFn(d.label));
       title.append('span')
-        .style('margin-left', '4px')
-        .text(d => d.label);
+        .text(d => d.label)
+        .classed('visLegend__valueTitleText', true);
     }
 
 
@@ -211,27 +195,16 @@ export function VislibLibChartLegendProvider() {
      */
     toggleDetail() {
       const colorFn = this.data.getColorFunc();
-      const isDark = !d3.selectAll('.application.theme-dark')
-        .empty();
       return d => {
         const labelContainer = d3.select(this.findLabelElement(d.label));
-        let detailContainer = labelContainer.select('.legend-value-details');
+        let detailContainer = labelContainer.select('.visLegend__valueDetails');
         if(!detailContainer || detailContainer.empty()) {
           detailContainer = labelContainer.append('div')
             .attr({
-              class: 'legend-value-details',
+              class: 'visLegend__valueDetails',
               'data-label': d.label
             })
             .style({
-              opacity: '0.9',
-              display: 'none',
-              overflow: 'hidden',
-              'max-height': '0',
-              padding: '4px',
-              position: 'absolute',
-              'box-shadow': '2px 2px 3px #222',
-              background: isDark ? '#222' : '#FFF',
-              color: isDark ? '#FFF' : '#000',
               bottom: this.legendPosition === 'bottom' ? `${labelContainer.node()
                 .getBoundingClientRect().height + 5}px` : null
             });
@@ -259,7 +232,7 @@ export function VislibLibChartLegendProvider() {
           }
           const colorPicker = detailContainer.append('div')
             .attr({
-              class: 'legend-value-color-picker',
+              class: 'visLegend__valueColorPicker',
               role: 'listbox'
             });
           colorPicker.append('span')
@@ -273,18 +246,24 @@ export function VislibLibChartLegendProvider() {
             .enter()
             .append('i')
             .style('color', color => color)
-            .attr('class', color => `fa dot fa-circle ${colorFn(d.label) === color ? '-o' : ''}`)
+            .attr('class', color => `fa dot visLegend__valueColorPickerDot fa-circle${colorFn(d.label) === color ? '-o' : ''}`)
             .on('click', color => this.setColor(d.label, color));
         }
         if(detailContainer.style('display') !== 'block') {
           this.hideAllDetails(true);
-          detailContainer.transition(500)
+          detailContainer.transition()
+            .delay(100)
             .style({
               'max-height': '200px',
               display: 'block'
             });
         } else {
-          this.hideAllDetails();
+          detailContainer.transition()
+            .delay(100)
+            .style({
+              'max-height': '0',
+              display: 'none'
+            });
         }
       };
     }
@@ -319,12 +298,10 @@ export function VislibLibChartLegendProvider() {
     /**
      * Hides all legend detail panels in the page
      *
-     * @param skipAnimation if true, will skip transition animation
      */
-    hideAllDetails(skipAnimation) {
+    hideAllDetails() {
       d3.select('body')
-        .selectAll('.legend-value-details')
-        .transition(skipAnimation ? 0 : 500)
+        .selectAll('.visLegend__valueDetails')
         .style({
           'max-height': '0',
           display: 'none'
@@ -338,8 +315,8 @@ export function VislibLibChartLegendProvider() {
      * @returns {HTMLElement} containing label contents for specified label
      */
     findLabelElement(label) {
-      return d3.select(this.el)
-        .select(`.legend-value[data-label='${label}']`)
+      return d3.select(this.el.parentNode)
+        .select(`.visLegend__value[data-label='${label}']`)
         .node();
     }
 
@@ -355,31 +332,6 @@ export function VislibLibChartLegendProvider() {
       }
     }
 
-    // addEvents(element) {
-    //   const events = this.events;
-    //
-    //   return element
-    //     .call(events.addHoverEvent())
-    //     .call(events.addMouseoutEvent())
-    //     .call(events.addClickEvent());
-    // }
-
-    setColor(label, color) {
-      const uiState = this.visConfig.data.uiState;
-      const colors = uiState.get('vis.colors') || {};
-      if(colors[label] === color) {
-        delete colors[label];
-      } else {
-        colors[label] = color;
-      }
-      uiState.set('vis.colors', colors);
-      uiState.emit('colorChanged');
-    }
-
-
-    toggle() {
-      return this.data.uiState.set('vis.legendOpen', !this.expanded);
-    }
 
     /**
      * Handles mouseenter event on legend labels
@@ -398,9 +350,10 @@ export function VislibLibChartLegendProvider() {
             right: () => (this.legendPosition === 'right' ? `${window.innerWidth - d3.event.pageX + 10}px` : null),
             left: () => (this.legendPosition !== 'right' ? `${d3.event.pageX}px` : null)
           });
-        tooltip.transition(100)
+        tooltip.transition()
+          .delay(100)
           .style({
-            opacity: '0.9',
+            opacity: '0.9'
           });
       }
       const targetEl = this.findLabelElement(label);
@@ -418,7 +371,8 @@ export function VislibLibChartLegendProvider() {
       }
       if(this.tooltipId) {
         const tooltip = d3.select(`#${this.tooltipId}`);
-        tooltip.transition(300)
+        tooltip.transition()
+          .delay(200)
           .style({
             opacity: 0
           });
@@ -466,15 +420,25 @@ export function VislibLibChartLegendProvider() {
      * @returns {*}
      */
     findBucket(label) {
-      if(!label) return false;
-      const data = this.data.data.series &&
-       this.data.data.series.filter(series => series && series.values)
-         .reduce((acc, cur) => acc.concat(cur.values), []) ||
-       this.data.data.slices && this.data.data.slices.children;
-      return data && data.filter(value => value && value.aggConfigResult && typeof value.aggConfigResult.getPath === 'function')
-        .reduce((acc, cur) => acc.concat(cur.aggConfigResult.getPath()), [])
-        .find(agg => agg && label === agg.key && agg.type === 'bucket' && agg.rawData);
+      if(!label) {
+        return false;
+      }
+      const chartType = this.handler.vis.visConfigArgs.type;
+      if(chartType === 'pie' && this.data.data.slices) {
+        return this.data.data.slices.children.find(slice => slice && slice.name === label) ||
+               this.data.data.slices.children.reduce((acc, cur) => acc.concat(cur.children), [])
+                 .find(slice => slice && slice.name === label);
+      }
+
+      const series = this.data.data.series &&
+                     this.data.data.series.find(series => series && series.label === label && series.values);
+      if(series && series.values.length) {
+        return series.values[0];
+        // .aggConfigResult.getPath()
+        //   .find(aggConfigResult => aggConfigResult && label === aggConfigResult.key && aggConfigResult.type === 'bucket');
+      }
     }
+
 
     /**
      * Creates function for handling of click events on filter buttons
@@ -483,17 +447,15 @@ export function VislibLibChartLegendProvider() {
      */
     filterAddHandler(negate = false) {
       return d => {
-        if(!d) return false;
+        if(!d) {
+          return false;
+        }
         const bucket = this.findBucket(d.label);
         if(bucket) {
-          const filter = {
-            data: bucket.rawData.table,
-            columnIndex: bucket.rawData.column,
-            rowIndex: bucket.rawData.row,
-            cellValue: bucket.key,
-            meta: { negate: negate || null }
-          };
-          this.handler.vis.emit('filter', filter);
+          this.handler.vis.emit('click', {
+            datum: bucket,
+            negate: negate
+          });
         }
       };
     }
@@ -503,8 +465,9 @@ export function VislibLibChartLegendProvider() {
      * Removes legend from container and cleans up tooltip
      */
     destroy() {
-      d3.select(this.el)
-        .selectAll('.vislib-legend')
+      d3.select(this.el.parentNode)
+        .classed(`visLib--legend-${this.legendPosition}`, false)
+        .selectAll('.visLegend')
         .remove();
       if(this.tooltipId) {
         d3.select(`#${this.tooltipId}`)

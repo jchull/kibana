@@ -188,7 +188,7 @@ describe('Vislib Chart Legend Class Test Suite', () => {
 
     it('should append legend to wrapper', () => {
       legend.render();
-      expect(d3.selectAll('.vislib-legend')
+      expect(d3.selectAll('.visLegend')
         .size())
         .toBe(1);
       expect(d3.select('#' + legend.legendId)
@@ -203,9 +203,9 @@ describe('Vislib Chart Legend Class Test Suite', () => {
       const container = d3.select(legend.el);
       container.append('div')
         .attr('id', 'remove_me')
-        .attr('class', 'vislib-legend');
+        .attr('class', 'visLegend');
       legend.render();
-      expect(container.selectAll('.vislib-legend')
+      expect(container.selectAll('.visLegend')
         .size())
         .toBe(1);
       expect(container.select('#remove_me')
@@ -549,7 +549,7 @@ describe('Vislib Chart Legend Class Test Suite', () => {
     it('should remove legend', () => {
       legend.render();
       expect(d3.select(legend.el)
-        .selectAll('.vislib-legend')
+        .selectAll('.visLegend')
         .size())
         .toBe(1);
       expect(d3.select(`#${legend.tooltipId}`)
@@ -557,7 +557,7 @@ describe('Vislib Chart Legend Class Test Suite', () => {
         .toBeFalsy();
       legend.destroy();
       expect(d3.select(legend.el)
-        .selectAll('.vislib-legend')
+        .selectAll('.visLegend')
         .size())
         .toBe(0);
       expect(d3.select(`#${legend.tooltipId}`)

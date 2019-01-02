@@ -1,0 +1,129 @@
+@import '../variables';
+
+// NOTE: Some of the styles attempt to align with the TSVB legend
+
+.visLegend__toggle {
+  align-self: flex-start;
+  // Override .kuiCollapseButton
+  color: $visValueColor !important;
+}
+
+.visLegend {
+  @include euiFontSizeXS;
+  padding: $euiSizeXS 0;
+  display: flex;
+  flex: 0 0 auto;
+  overflow: visible;
+  min-height: 0;
+  flex-direction: row;
+
+  &.expanded {
+    flex: 0 0 auto;
+    overflow: auto;
+  }
+
+  .visLib--legend-right & {
+    flex-direction: row;
+    min-width: 0;
+    max-width: 50%;
+  }
+
+  // flex-direction re-aligns toggle button
+  .visLib--legend-left & {
+    flex-direction: row-reverse;
+    min-width: 0;
+    max-width: 50%;
+  }
+
+  .visLib--legend-top & {
+    flex-direction: column-reverse;
+    width: 100%;
+  }
+
+  .visLib--legend-bottom & {
+    flex-direction: column;
+    width: 100%;
+  }
+
+
+  .visLegend__list {
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    .visLib--legend-top &,
+    .visLib--legend-bottom & {
+      width: auto;
+      overflow-y: hidden;
+
+      .visLegend__value {
+        display: inline-block;
+      }
+    }
+
+    &.hidden {
+      visibility: hidden;
+    }
+  }
+}
+
+.visLegend__value {
+  cursor: pointer;
+  padding: $euiSizeXS;
+  display: flex;
+  overflow: visible;
+
+  > * {
+    max-width: 100%;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+  }
+}
+
+.visLegend__valueTitle {
+  color: $visTextColor;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  .visLegend__valueTitleText {
+    padding: 0 $euiSizeXS;
+  }
+}
+
+.visLegend__valueTitle--truncate {
+  @include euiTextTruncate;
+}
+
+.visLegend__valueTitle--full {
+  word-break: break-all;
+}
+
+.visLegend__valueDetails {
+  background-color: lightOrDarkTheme($euiColorEmptyShade, $euiColorLightShade);
+  position: absolute;
+  border-bottom: 1px solid $euiColorLightShade;
+  border-radius: 3px;
+  padding-bottom: $euiSizeXS;
+  opacity: 0.9;
+  max-height: 0;
+  display: none;
+}
+
+.visLegend__valueColorPicker {
+  width: $euiSizeM * 10;
+  margin: auto;
+
+  .visLegend__valueColorPickerDot {
+    margin: $euiSizeXS / 2;
+
+    &:hover {
+      transform: scale(1.4);
+    }
+  }
+}
